@@ -1,0 +1,420 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+namespace MathParser
+{
+    interface IDefinable 
+    {
+        public double? Value { get; } 
+        public string Description { get; }
+        public string Definition { get; }
+    }
+
+    class Constant : IDefinable
+    {
+        public string Definition
+        {
+            get
+            {
+                return Value.ToString();
+            }
+        }
+        public string Description
+        {
+            get
+            {
+                return $"A constant with the value: {Value}";
+            }
+        }
+        public double? Value { get; set; }
+        public Constant(double? value) { Value = value; }
+
+        public override string ToString()
+        {
+            //if (Value == null) { return "NaN"; }
+
+            return Value.ToString();
+        }
+    }
+
+    class Variable : IDefinable
+    {
+        public string Definition
+        {
+            get
+            {
+                return Link == null ? "null" : Link.ToString();
+            }
+        }
+        public string Description
+        {
+            get
+            {
+                return $"A variable defined as: {(Link != null ? Link.ToString() : "null")}";
+            }
+        }
+        public double? Value
+        {
+            get
+            {
+                if (Link == null) { return null; }
+
+                return Link.Value;
+            }
+            set
+            {
+                Link = new Constant(value);
+            }
+        }
+        public string Name { get; }
+        public IDefinable Link { get; set; }
+
+        public Variable(string name) { Name = name; }
+        public override string ToString() { return Name; }
+    }
+
+    class Element : IDefinable
+    {
+        public string Definition { get { return ToString(Expression.maxLevel); } }
+        public string Description
+        {
+            get
+            {
+                return $"An element that stores the item: {Item}, with the modifiers: Negative = {Negative}, Under Onde = {UnderOne}";
+            }
+        }
+        public double? Value
+        {
+            get
+            {
+                if (Item == null) { return null; }
+                double? returnValue = Item.Value;
+
+                if (returnValue == null) { return null; }
+
+                if (negative) { returnValue = -returnValue; }
+                if (underOne) { returnValue = 1 / returnValue; }
+
+                return returnValue;
+            }
+        }
+        public IDefinable Item { get; set; }
+
+        public Element(IDefinable item) { Item = item; }
+
+        #region modifiers: negative and underOne and others
+        private bool negative;
+        private bool underOne;
+        public bool Negative { get { return negative; } set { negative = value; } }
+        public bool UnderOne { get { return underOne; } set { underOne = value; } }
+        #endregion
+
+        #region tostring
+        public string ItemToString() { return ItemToString(null); }
+        public string ItemToString(int? parentLevel)
+        {
+            if (Item == null) { return "null"; }
+
+            //if wrap is true the result is wrapped in parenthesis before returning, ex: (-9):negative constant; (4+7):elementList
+            bool wrap = false;
+
+            //wrap if ElementList (plus level based condition, this condition is not checked if parentLevel is null)
+            if (Item.GetType() == typeof(Expression))
+            {
+                if (parentLevel != null)
+                {
+                    if (parentLevel >= ((Expression)Item).Level) { wrap = true; }
+                }
+                else { wrap = true; }
+            }
+            //num *10^exp 52 1 
+            //wrap if negative constant
+            if (Item.GetType() == typeof(Constant) && Item.Value != null) { if (Item.Value < 0) { wrap = true; } }
+
+            if (wrap) { return '(' + Item.ToString() + ')'; }
+
+            return Item.ToString();
+        }
+
+        public override string ToString()
+        {
+            return this.ToString(null);
+        }
+        public string ToString(int? parentLevel)
+        {
+            StringBuilder returnString = new StringBuilder();
+            int? passinLevel = parentLevel;
+
+            if (Negative || UnderOne) { returnString.Append('('); }
+            if (Negative) { returnString.Append('-'); passinLevel = null; }
+            if (UnderOne) { returnString.Append("1/"); if (!Negative) { passinLevel = 1; } }
+
+            returnString.Append(ItemToString(passinLevel));
+
+            if (Negative || UnderOne) { returnString.Append(')'); }
+
+            return returnString.ToString();
+        }
+        #endregion
+    }
+
+    class Expression : IDefinable
+    {
+        #region properties
+        public string Definition { get { return ToString(); } }
+        public string Description
+        {
+            get
+            {
+                return $"An expression with the execution mode of {(level == 0 ? "+-" : (level == 1 ? "*/" : (level == 2 ? "^" : "null")))} and {Elements.Count} elements.";
+            }
+        }
+        public double? Value { get { return this.Calculate(); } }
+        private List<Element> elementList = new List<Element>();
+        public List<Element> Elements { get { return elementList; } set { elementList = value; } }
+
+        public static readonly int maxLevel = 2;
+        private int level = 0;
+        public int? Level
+        {
+            get
+            {
+                if (level < 0 || level > maxLevel) { return null; }
+                return level;
+            }
+            set
+            {
+                if (value == null) { level = -1; }
+                else if (value < 0) { level = -1; }
+                else if (value <= maxLevel) { level = (int)value; }
+            }
+        }
+        #endregion
+
+        #region constructors
+        #endregion
+
+        #region elementList passthrough methods for elementList modification
+        public void AddElement(Element item) { elementList.Add(item); }
+        public void AddElement(IDefinable item) { elementList.Add(new Element(item)); }
+        public void ClearElements() { elementList.Clear(); }
+        public void AddElementRange(IEnumerable<Element> elementRange) { elementList.AddRange(elementRange); }
+        public bool RemoveElement(Element item) { return elementList.Remove(item); }
+        #endregion
+
+        public double? Calculate()
+        {
+            if (elementList.Count == 0) { return null; }
+            else if (elementList.Count == 1) { return elementList[0].Value; }
+
+            double? returnValue;
+            double? itemValue;
+            switch (Level)
+            {
+                default:
+                    //null
+                    return null;
+                    break;
+
+                case 0:
+                    //Addition
+                    returnValue = 0.0;
+                    foreach (Element item in elementList)
+                    {
+                        itemValue = item.Value;
+                        if (itemValue == null) { return null; }
+                        returnValue += itemValue;
+                    }
+                    return returnValue;
+                    break;
+
+                case 1:
+                    //Multiplication
+                    returnValue = 1.0;
+                    foreach (Element item in elementList)
+                    {
+                        itemValue = item.Value;
+                        if (itemValue == null) { return null; }
+                        returnValue *= itemValue;
+                    }
+                    return returnValue;
+                    break;
+
+                case 2:
+                    //Exponent
+                    returnValue = elementList[^1].Value;
+                    if (returnValue == null) { return null; }
+
+                    for (int index = elementList.Count - 2; index >= 0; index--)
+                    {
+                        itemValue = elementList[index].Value;
+                        if (itemValue == null) { return null; }
+
+                        returnValue = Math.Pow((double)itemValue, (double)returnValue);
+                    }
+                    return returnValue;
+                    break;
+            }
+        }
+
+        public override string ToString()
+        {
+            int elementCount = elementList.Count;
+            if (elementCount == 0)
+            {
+                return "null";
+            }
+            else if (elementCount == 1)
+            {
+                return elementList[0].ToString();
+            }
+
+            StringBuilder returnString = new StringBuilder();
+            bool first;
+            switch (Level)
+            {
+                default:
+                    //null
+                    first = true;
+                    foreach (Element item in elementList)
+                    {
+                        if (!first) { returnString.Append(", "); }
+
+                        returnString.Append(item.ToString(null));
+
+                        first = false;//No code beyond this point
+                    }
+
+                    return returnString.ToString();
+                    break;
+
+                case 0:
+                    //Addition
+                    first = true;
+                    foreach (Element item in elementList)
+                    {
+                        int? passinLevel = Level;
+                        if (first)
+                        {
+                            returnString.Append(item.ToString(passinLevel));
+                        }
+                        else
+                        {
+                            if (item.Negative) { returnString.Append(" - "); }
+                            else { returnString.Append(" + "); }
+
+                            if (item.UnderOne) { returnString.Append("(1/"); passinLevel = 1; }
+                            returnString.Append(item.ItemToString(passinLevel));
+                            if (item.UnderOne) { returnString.Append(')'); }
+                        }
+
+                        first = false;//No code beyond this point
+                    }
+                    return returnString.ToString();
+                    break;
+
+                case 1:
+                    //Miltiplication
+                    first = true;
+                    foreach (Element item in elementList)
+                    {
+                        int? passinLevel = Level;
+                        if (first)
+                        {
+                            returnString.Append(item.ToString(passinLevel));
+                        }
+                        else
+                        {
+                            if (item.Negative) { returnString.Append(" / "); }
+                            else { returnString.Append(" * "); }
+
+                            if (item.UnderOne) { returnString.Append("(-"); passinLevel = null; }
+                            returnString.Append(item.ItemToString(passinLevel));
+                            if (item.UnderOne) { returnString.Append(')'); }
+                        }
+                        first = false;//No code beyond this point
+                    }
+                    return returnString.ToString();
+
+                case 2:
+                    //Exponent
+                    first = true;
+                    foreach (Element item in elementList)
+                    {
+                        if (!first) { returnString.Append('^'); }
+                        returnString.Append(item.ToString(Level));
+                        first = false;//No code beyond this point
+                    }
+                    return returnString.ToString();
+                    break;
+
+
+            }
+            //switch
+        }
+        //method
+    }
+
+    class FunctionContainer : IDefinable
+    {
+        public string Definition { get { return Item == null ? "null" : ToString() + " := " + Item.Definition; } }
+        public string Description
+        {
+            get
+            {
+                return $"A function container which contains the function: {(Item != null ? Item.ToString() : "null")}";
+            }
+        }
+        public double? Value { get { return Calculate(); } }
+        private Dictionary<string, IDefinable> argLinks = new Dictionary<string, IDefinable>();
+        public Dictionary<string, IDefinable> ArgumentLinks { get { return argLinks; } set { argLinks = value; } }
+        private IFunctional item = null;
+        public IFunctional Item
+        {
+            get { return item; }
+            set
+            {
+                argLinks.Clear();
+                foreach(string key in value.ArgumentNames)
+                {
+                    argLinks.Add(key, null);
+                }
+                item = value;
+            }
+        }
+
+        public double? Calculate()
+        {
+            if (Item == null) { return null; }
+
+            Dictionary<string, double?> argumentValues = new Dictionary<string, double?>();
+
+            foreach (KeyValuePair<string, IDefinable> argumentLinkPair in argLinks)
+            {
+                argumentValues.Add(argumentLinkPair.Key, argumentLinkPair.Value.Value);
+            }
+
+            return Item.Calculate(argumentValues);
+        }
+
+        public override string ToString()
+        {
+            if (Item == null) { return "null"; };
+            StringBuilder returnString = new StringBuilder(Item.Name);
+            returnString.Append('(');
+            
+            foreach(KeyValuePair<string, IDefinable> argLinkPair in argLinks)
+            {
+                returnString.Append(argLinkPair.Value.ToString());
+                returnString.Append(", ");
+            }
+            //remove last comma and space
+            returnString.Remove(returnString.Length - 2, 2);
+            returnString.Append(')');
+
+            return returnString.ToString();
+        }
+    }
+}

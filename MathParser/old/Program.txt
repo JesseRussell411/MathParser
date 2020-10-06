@@ -1,0 +1,124 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
+using System.Linq;
+
+namespace MathParser
+{
+    public static class Utils
+    {
+        public static readonly string levelIns = "([{";
+        public static readonly string levelOuts = ")]}";
+        public static readonly string operators = "+-*/^";
+        public static readonly char addOp = '+';
+        public static readonly char subOp = '-';
+        public static readonly char mulOp = '*';
+        public static readonly char divOp = '/';
+        public static readonly char expOp = '^';
+        public static readonly string deliminators = " ,";
+        public static readonly string bounds = "|\"";
+
+        public static string[] LevelSplit(this string text, char deliminator, string levelIns, string levelOuts)
+        {
+            int level = 0;
+            foreach(char character in text)
+            {
+                if (levelIns.Contains(character)) { level++; }
+
+                if (levelOuts.Contains(character)) { level--; }
+            }
+        }
+
+        public static string SpecialCOut(string text)
+        {
+            if (text == null ? true : text == "")
+            {
+                return "null";
+            }
+            else
+            {
+                return text;
+            }
+        }
+
+        public static IDefinable ParseDefinable(string text)
+        {
+            
+        }
+    }
+
+    class Program
+    {
+
+        static void Main(string[] args)
+        {
+            //just testing stuff for now, parser later.
+            Constant con1 = new Constant(1);
+            Element el1 = new Element(con1);
+
+            Constant con2 = new Constant(2);
+            Element el2 = new Element(con2);
+
+            Constant con3 = new Constant(3);
+            Element el3 = new Element(con3);
+
+            Constant con4 = new Constant(4);
+            Element el4 = new Element(con4);
+
+            Constant con5 = new Constant(5);
+            Element el5 = new Element(con5);
+
+            Expression els123 = new Expression();
+            els123.AddElement(el1);
+            els123.AddElement(el2);
+            els123.AddElement(el3);
+            els123.Level = 1;
+
+            Expression els4_123_5 = new Expression();
+
+            els4_123_5.AddElement(el4);
+            els4_123_5.AddElement(els123);
+            els4_123_5.AddElement(el5);
+            els4_123_5.Level = 2;
+
+
+            Console.WriteLine(els4_123_5.ToString());
+            Console.WriteLine(els4_123_5.Value);
+
+            Variable x = new Variable("x");
+            //Constant con2 = new Constant(2);
+
+            Function func2x = new Function("y", new Variable[] { x }, new Expression() { Elements = new List<Element> { new Element(con2), new Element(x) }, Level = 1 });
+            Console.WriteLine(func2x.FullName);
+
+            FunctionContainer funct2x_2 = new FunctionContainer();
+            funct2x_2.Item = func2x;
+            funct2x_2.ArgumentLinks["x"] = new Constant(2);
+            FunctionContainer funct2x_3 = new FunctionContainer();
+            funct2x_3.Item = func2x;
+            funct2x_3.ArgumentLinks["x"] = new Constant(3);
+            Console.Write(funct2x_2.ToString());
+            Console.WriteLine(" = " + funct2x_2.Value);
+            Console.Write(funct2x_3.ToString());
+            Console.WriteLine(" = " + funct2x_3.Value);
+            Console.Write(funct2x_2.ToString());
+            Console.WriteLine(" = " + funct2x_2.Value);
+            Console.Write(funct2x_3.ToString());
+            Console.WriteLine(" = " + funct2x_3.Value);
+
+            FunctionContainer funct2x_2x_3 = new FunctionContainer() { Item = func2x };
+            funct2x_2x_3.ArgumentLinks["x"] = funct2x_3;
+            Console.WriteLine(funct2x_2x_3.ToString() + " = " + funct2x_2x_3.Value.ToString());
+
+            FunctionContainer functSinArg = new FunctionContainer();
+            functSinArg.Item = new Sin();
+            functSinArg.ArgumentLinks["x"] = new Constant(5);
+            Console.WriteLine(functSinArg.ToString() + " = " + functSinArg.Value);
+            Console.WriteLine("---");
+            Console.WriteLine(functSinArg.Item.Definition);
+            //y := (x^2 + sin(90) - 7 + (4+9))/abs(x)
+            Console.WriteLine(funct2x_2x_3.Description);
+            Console.WriteLine(els4_123_5.Description);
+        }
+    }
+}

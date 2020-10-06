@@ -1,0 +1,322 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
+using System.Linq;
+
+namespace MathParser
+{
+    static class Functils
+    {
+        public static string namedef(string name, string[] args)
+        {
+            StringBuilder defBuilder = new StringBuilder(name);
+            defBuilder.Append('(');
+            foreach (string arg in args)
+            {
+                defBuilder.Append(arg);
+                defBuilder.Append(", ");
+            }
+            //removing last comma and space
+            defBuilder.Remove(defBuilder.Length - 2, 2);
+            defBuilder.Append(')');
+
+            return defBuilder.ToString();
+        }
+    }
+    interface IFunctional
+    {
+        public string[] ArgumentNames { get; }
+        public double? Calculate(Dictionary<string, double?> argumentValues);
+        public string Name { get; }
+        public string Definition { get; }
+        public string Description { get; }
+        public string FullName { get; }
+    }
+
+    /// <summary>
+    /// User defined function
+    /// </summary>
+    class Function : IFunctional
+    {
+        public string FullName { get { return $"{ToString()} := {Definition}"; } }
+        public string Definition { get { return Behavior == null ? "null" : Behavior.ToString(); } }
+        public string Description { get { return "A user defined function."; } }
+        public string[] ArgumentNames
+        {
+            get
+            {
+                if (Arguments == null) { return new string[] { }; }
+                else { return Arguments.Keys.ToArray(); }
+            }
+        }
+        public IDefinable Behavior { get; set; }
+        public Dictionary<string, Variable> Arguments { get; set; }
+
+        public string Name { get; }
+
+        public Function(string name)
+        {
+            Name = name;
+        }
+
+
+        public Function(string name, Variable[] arguments, Expression behavior)
+            : this(name)
+        {
+            Arguments = new Dictionary<string, Variable>();
+            foreach (Variable arg in arguments)
+            {
+                Arguments.Add(arg.Name, arg);
+            }
+
+            Behavior = behavior;
+        }
+
+        public double? Calculate(double?[] argumentValues)
+        {
+            if(Behavior == null) { return null; }
+            if(Arguments != null)
+            {
+                int i = 0;
+                foreach(KeyValuePair<string, Variable> argPair in Arguments)
+                {
+                    argPair.Value.Value = argumentValues[i];
+                    i++;
+                }
+            }
+            return Behavior.Value;
+        }
+
+        public double? Calculate(Dictionary<string, double?> argumentValues)
+        {
+            if (Behavior == null) { return null; }
+            if (Arguments != null)
+            {
+                foreach (KeyValuePair<string, Variable> argPair in Arguments)
+                {
+                    argPair.Value.Value = argumentValues.GetValueOrDefault(argPair.Key, null);
+                }
+            }
+
+            return Behavior.Value;
+        }
+
+        public override string ToString()
+        {
+            StringBuilder returnString = new StringBuilder(this.Name);
+            returnString.Append('(');
+            foreach (string name in ArgumentNames)
+            {
+                returnString.Append(name);
+                returnString.Append(", ");
+            }
+            //removing the last comma and space
+            returnString.Remove(returnString.Length - 2, 2);
+
+            returnString.Append(')');
+            return returnString.ToString();
+        }
+    }
+
+    /// <summary>
+    /// Built-in funciton
+    /// </summary>
+    class Sin : IFunctional
+    {
+        public string FullName { get { return $"{ToString()} := {Definition}";  } }
+        public string Definition { get { return Functils.namedef(Name, ArgumentNames); } }
+        public string Name { get { return "sin"; } }
+        private readonly string[] args = { "x" };
+        public string[] ArgumentNames { get { return args; } }
+        public string Description { get { return "Returns the sine of x radians."; } }
+        public double? Calculate(Dictionary<string, double?> argumentValues)
+        {
+            double? argval;
+            if(argumentValues.TryGetValue(ArgumentNames[0], out argval))
+            {
+                if(argval != null) { return Math.Sin((double)argval); } else { return null; }
+            }
+            else { return null; }
+        }
+        public override string ToString()
+        {
+            return Functils.namedef(Name, ArgumentNames);
+        }
+    }
+
+    /// <summary>
+    /// Built-in funciton
+    /// </summary>
+    class Cos : IFunctional
+    {
+        public string FullName { get { return $"{ToString()} := {Definition}"; } }
+        public string Definition { get { return Functils.namedef(Name, ArgumentNames); } }
+        public string Name { get { return "cos"; } }
+        private readonly string[] args = { "x" };
+        public string[] ArgumentNames { get { return args; } }
+        public string Description { get { return "Returns the cosine of x radians."; } }
+        public double? Calculate(Dictionary<string, double?> argumentValues)
+        {
+            double? argval;
+            if (argumentValues.TryGetValue(ArgumentNames[0], out argval))
+            {
+                if (argval != null) { return Math.Cos((double)argval); } else { return null; }
+            }
+            else { return null; }
+        }
+    }
+
+    /// <summary>
+    /// Built-in funciton
+    /// </summary>
+    class Tan : IFunctional
+    {
+        public string FullName { get { return $"{ToString()} := {Definition}";  } }
+        public string Definition { get { return Functils.namedef(Name, ArgumentNames); } }
+        public string Name { get { return "tan"; } }
+        private readonly string[] args = { "x" };
+        public string[] ArgumentNames { get { return args; } }
+        public string Description { get { return "Returns the tangent of x radians."; } }
+        public double? Calculate(Dictionary<string, double?> argumentValues)
+        {
+            double? argval;
+            if (argumentValues.TryGetValue(ArgumentNames[0], out argval))
+            {
+                if (argval != null) { return Math.Tan((double)argval); } else { return null; }
+            }
+            else { return null; }
+        }
+    }
+
+    /// <summary>
+    /// Built-in funciton
+    /// </summary>
+    class ArcSin : IFunctional
+    {
+        public string FullName { get { return $"{ToString()} := {Definition}";  } }
+        public string Definition { get { return Functils.namedef(Name, ArgumentNames); } }
+        public string Name { get { return "arcsin"; } }
+        private readonly string[] args = { "x" };
+        public string[] ArgumentNames { get { return args; } }
+        public string Description { get { return "Returns the arcsine of x radians."; } }
+        public double? Calculate(Dictionary<string, double?> argumentValues)
+        {
+            double? argval;
+            if (argumentValues.TryGetValue(ArgumentNames[0], out argval))
+            {
+                if (argval != null) { return Math.Asin((double)argval); } else { return null; }
+            }
+            else { return null; }
+        }
+    }
+
+    /// <summary>
+    /// Built-in funciton
+    /// </summary>
+    class ArcCos : IFunctional
+    {
+        public string FullName { get { return $"{ToString()} := {Definition}"; } }
+        public string Definition { get { return Functils.namedef(Name, ArgumentNames); } }
+        public string Name { get { return "arcCos"; } }
+        private readonly string[] args = { "x" };
+        public string[] ArgumentNames { get { return args; } }
+        public string Description { get { return "Returns the arccosine of x radians."; } }
+        public double? Calculate(Dictionary<string, double?> argumentValues)
+        {
+            double? argval;
+            if (argumentValues.TryGetValue(ArgumentNames[0], out argval))
+            {
+                if (argval != null) { return Math.Acos((double)argval); } else { return null; }
+            }
+            else { return null; }
+        }
+    }
+
+    /// <summary>
+    /// Built-in funciton
+    /// </summary>
+    class ArcTan : IFunctional
+    {
+        public string FullName { get { return $"{ToString()} := {Definition}";  } }
+        public string Definition { get { return Functils.namedef(Name, ArgumentNames); } }
+        public string Name { get { return "arcTan"; } }
+        private readonly string[] args = { "x" };
+        public string[] ArgumentNames { get { return args; } }
+        public string Description { get { return "Returns the arctangent of x radians."; } }
+        public double? Calculate(Dictionary<string, double?> argumentValues)
+        {
+            double? argval;
+            if (argumentValues.TryGetValue(ArgumentNames[0], out argval))
+            {
+                if (argval != null) { return Math.Atan((double)argval); } else { return null; }
+            }
+            else { return null; }
+        }
+    }
+
+    /// <summary>
+    /// Built-in funciton
+    /// </summary>
+    class Deg : IFunctional
+    {
+        public string FullName { get { return $"{ToString()} := {Definition}";  } }
+        public string Definition { get { return Functils.namedef(Name, ArgumentNames); } }
+        public string Name { get { return "deg"; } }
+        private readonly string[] args = { "x" };
+        public string[] ArgumentNames { get { return args; } }
+        public string Description { get { return "Returns x radians converted to degrees."; } }
+        public double? Calculate(Dictionary<string, double?> argumentValues)
+        {
+            double? argval;
+            if (argumentValues.TryGetValue(ArgumentNames[0], out argval))
+            {
+                return (180.0 / Math.PI) * argval;
+            }
+            else { return null; }
+        }
+    }
+
+    /// <summary>
+    /// Built-in funciton
+    /// </summary>
+    class Rad : IFunctional
+    {
+        public string FullName { get { return $"{ToString()} := {Definition}";  } }
+        public string Definition { get { return Functils.namedef(Name, ArgumentNames); } }
+        public string Name { get { return "rad"; } }
+        private readonly string[] args = { "x" };
+        public string[] ArgumentNames { get { return args; } }
+        public string Description { get { return "Returns x degrees converted to radians."; } }
+        public double? Calculate(Dictionary<string, double?> argumentValues)
+        {
+            double? argval;
+            if (argumentValues.TryGetValue(ArgumentNames[0], out argval))
+            {
+                return (Math.PI / 180.0) * argval;
+            }
+            else { return null; }
+        }
+    }
+
+    /// <summary>
+    /// Built-in funciton
+    /// </summary>
+    class Abs : IFunctional
+    {
+        public string FullName { get { return $"{ToString()} := {Definition}";  } }
+        public string Definition { get { return Functils.namedef(Name, ArgumentNames); } }
+        public string Name { get { return "deg"; } }
+        private readonly string[] args = { "x" };
+        public string[] ArgumentNames { get { return args; } }
+        public string Description { get { return "Returns the absolute power (distance from 0) of x."; } }
+        public double? Calculate(Dictionary<string, double?> argumentValues)
+        {
+            double? argval;
+            if (argumentValues.TryGetValue(ArgumentNames[0], out argval))
+            {
+                return (180.0 / Math.PI) * argval;
+            }
+            else { return null; }
+        }
+    }
+}
